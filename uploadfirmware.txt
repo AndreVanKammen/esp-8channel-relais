@@ -1,2 +1,2 @@
-put .pioenvs/esp12e/firmware.bin doorbell.ringer.bin
-rm doorbell.ringer.bin.sent
+put .pioenvs/esp12e/firmware.bin esp.8channel.relais.bin
+rm esp.8channel.relais.bin.sent
