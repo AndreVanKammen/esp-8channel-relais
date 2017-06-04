@@ -13,20 +13,21 @@ WiFiClient client;
 PubSubClient mqtt(client);
 long setupStartMillis;
 
-int latchPin = 12; // pin D8 on NodeMCU boards
-int clockPin = 14; // pin D5 on NodeMCU boards
-int dataPin = 13;  // pin D7 on NodeMCU boards
+int latchPin = 12;
+int clockPin = 14;
+int dataPin = 13;
+int outputEnablePin = 4;
 
-int keyBoardLine1 = 1;
+int keyBoardLine1 = 5;
 int keyBoardLine2 = 3;
-int keyBoardLine3 = 5;
+int keyBoardLine3 = 1;
 
 char relaisState = 0;
 char keyScanState = 0;
 
 void checkForUpdate()
 {
-  t_httpUpdate_return ret = ESPhttpUpdate.update("http://192.168.1.20/espupdate/update.php", "esp.8channel.relais.bin"); // Should be the same as in uploadfirmware.txt
+  t_httpUpdate_return ret = ESPhttpUpdate.update("http://192.168.1.20/espupdate/update.php", "relays.driver.bin"); // Should be the same as in uploadfirmware.txt
 #ifdef SERIAL_DEBUG
   switch (ret)
   {
@@ -66,6 +67,8 @@ void setup()
   pinMode(latchPin, OUTPUT);
   pinMode(clockPin, OUTPUT);
   pinMode(dataPin, OUTPUT);
+  pinMode(outputEnablePin, OUTPUT);
+  digitalWrite(outputEnablePin, HIGH);
 
   pinMode(keyBoardLine1, INPUT_PULLUP);
   pinMode(keyBoardLine2, INPUT_PULLUP);
@@ -79,8 +82,9 @@ void UpdateShiftRegisters()
 {
   digitalWrite(latchPin, LOW);
   shiftOut(dataPin, clockPin, LSBFIRST, keyScanState ^ 0xFF);
-  shiftOut(dataPin, clockPin, LSBFIRST, relaisState ^ 0xff);
+  shiftOut(dataPin, clockPin, MSBFIRST, relaisState ^ 0xff);
   digitalWrite(latchPin, HIGH);
+  digitalWrite(outputEnablePin, LOW);
 }
 
 void mqttMessage(char *topic, byte *payload, unsigned int length)
