@@ -86,7 +86,7 @@ void UpdateShiftRegisters()
   {
     lastRelaysState = relaysState;
     sprintf(&res[0], "%02x", relaysState);
-    mqtt.publish("stat/relays/power", &res[0]);
+    mqtt.publish("stat/relays/power", &res[0], true);
   }
   digitalWrite(latchPin, LOW);
   shiftOut(dataPin, clockPin, LSBFIRST, keyScanState ^ 0xFF);
@@ -99,11 +99,11 @@ void mqttMessage(char *topic, byte *payload, unsigned int length)
 {
   if (length >= 2)
   {
-    char newState = (char)(strtoul((char*)payload, NULL, 16) & 0xFF);
+    char newState = (char)(strtoul((char *)payload, NULL, 16) & 0xFF);
     if (length >= 3)
     {
       if ('-' == (char)payload[2])
-        relaysState &= !newState;
+        relaysState &= (newState ^ 0xFF);
       else if ('+' == (char)payload[2])
         relaysState |= newState;
       else
