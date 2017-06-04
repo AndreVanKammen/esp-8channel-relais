@@ -22,7 +22,7 @@ int keyBoardLine1 = 5;
 int keyBoardLine2 = 3;
 int keyBoardLine3 = 1;
 
-char relaisState = 0;
+char relaysState = 0;
 char keyScanState = 0;
 
 void checkForUpdate()
@@ -32,7 +32,7 @@ void checkForUpdate()
   switch (ret)
   {
   case HTTP_UPDATE_FAILED:
-    Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s\n", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
+    Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s\n", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
     break;
 
   case HTTP_UPDATE_NO_UPDATES:
@@ -78,18 +78,40 @@ void setup()
   mqtt.setCallback(mqttMessage);
 }
 
+char lastRelaysState = relaysState;
+static char res[3];
 void UpdateShiftRegisters()
 {
+  if (lastRelaysState != relaysState)
+  {
+    lastRelaysState = relaysState;
+    sprintf(&res[0], "%02x", relaysState);
+    mqtt.publish("stat/relays/power", &res[0]);
+  }
   digitalWrite(latchPin, LOW);
   shiftOut(dataPin, clockPin, LSBFIRST, keyScanState ^ 0xFF);
-  shiftOut(dataPin, clockPin, MSBFIRST, relaisState ^ 0xff);
+  shiftOut(dataPin, clockPin, MSBFIRST, relaysState ^ 0xff);
   digitalWrite(latchPin, HIGH);
   digitalWrite(outputEnablePin, LOW);
 }
 
 void mqttMessage(char *topic, byte *payload, unsigned int length)
 {
-  relaisState = (char)payload[0];
+  if (length >= 2)
+  {
+    char newState = (char)(strtoul((char*)payload, NULL, 16) & 0xFF);
+    if (length >= 3)
+    {
+      if ('-' == (char)payload[2])
+        relaysState &= !newState;
+      else if ('+' == (char)payload[2])
+        relaysState |= newState;
+      else
+        relaysState ^= newState;
+    }
+    else
+      relaysState = newState;
+  }
   UpdateShiftRegisters();
 #ifdef SERIAL_DEBUG
   Serial.print("Message arrived [");
@@ -123,7 +145,7 @@ void handleMqtt()
       Serial.print("Attempting MQTT connection...");
 #endif
       // Attempt to connect
-      if (mqtt.connect("esp_8channel_relais"))
+      if (mqtt.connect("esp_relays_driver"))
       {
 #ifdef SERIAL_DEBUG
         Serial.print("Connected in: ");
@@ -135,7 +157,7 @@ void handleMqtt()
         Serial.println();
 #endif
         // ... and resubscribe
-        mqtt.subscribe("cmnd/relais/power");
+        mqtt.subscribe("cmnd/relays/power");
 
         checkForUpdate();
       }
@@ -190,11 +212,11 @@ void updateKeyValue(int keyNr, int keySignal)
         keyboardMsg = keyToChar(keyNr);
         mqtt.publish("stat/keyboard/keydown", &keyboardMsg, 1);
         if (keyNr < 8)
-          relaisState ^= 1 << keyNr;
+          relaysState ^= 1 << keyNr;
         if (keyNr == 9)
-          relaisState = 255;
+          relaysState = 255;
         if (keyNr == 11)
-          relaisState = 0;
+          relaysState = 0;
       }
     }
   }

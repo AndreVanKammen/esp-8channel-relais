@@ -1,2 +1,2 @@
-put .pioenvs/esp12e/firmware.bin esp.8channel.relais.bin
-rm esp.8channel.relais.bin.sent
+put .pioenvs/esp12e/firmware.bin relays.driver.bin
+rm relays.driver.bin.sent
